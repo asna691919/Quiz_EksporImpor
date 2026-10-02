@@ -1,1 +1,272 @@
-<!DOCTYPE html><html lang='id'><head><meta charset='UTF-8'><title>Quiz</title><link rel='stylesheet' href='styles.css'><script src='questions.js'></script></head><body><div class='top'><h2>Ujian Formatif</h2><h2 id='timer'>30:00</h2></div><div id='qz'></div><button onclick='submitQuiz()'>Submit</button><script type='module'>import{db,collection,addDoc}from'./firebase.js';const m=JSON.parse(sessionStorage.getItem('mhs')||'{}');let sec=1800;setInterval(()=>{sec--;timer.textContent=`${String(Math.floor(sec/60)).padStart(2,'0')}:${String(sec%60).padStart(2,'0')}`;if(sec<=0)submitQuiz();},1000);const box=document.getElementById('qz');QUESTIONS.forEach((s,i)=>{let h=`<div class=card><b>${i+1}. ${s.q}</b>`;s.o.forEach((o,j)=>h+=`<label class=opt><input type=radio name=q${i} value=${j}> ${o}</label>`);box.innerHTML+=h+'</div>';});window.submitQuiz=async()=>{let score=0;const ans=[];QUESTIONS.forEach((s,i)=>{const p=document.querySelector(`input[name=q${i}]:checked`);const v=p?Number(p.value):-1;if(v===s.a)score++;ans.push(v);});await addDoc(collection(db,'results'),{...m,score,answers:ans,time:new Date().toISOString()});alert(`Nilai: ${score}/${QUESTIONS.length}`);location='index.html';};</script></body></html>
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+
+    <title>Quiz Formatif</title>
+
+    <link rel="stylesheet" href="styles.css">
+
+    <!-- Library untuk membaca file Excel -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+</head>
+
+<body>
+
+    <div class="top">
+        <h2>Ujian Formatif</h2>
+        <h2 id="timer">30:00</h2>
+    </div>
+
+    <!-- Tempat soal akan ditampilkan -->
+    <div id="qz">
+        <p>Memuat soal...</p>
+    </div>
+
+    <button onclick="submitQuiz()">Submit</button>
+
+
+    <script type="module">
+
+        // ==========================================
+        // 1. AMBIL DATA MAHASISWA
+        // ==========================================
+
+        import {
+            db,
+            collection,
+            addDoc
+        } from "./firebase.js";
+
+        const mahasiswa =
+            JSON.parse(
+                sessionStorage.getItem("mhs") || "{}"
+            );
+
+
+        // ==========================================
+        // 2. TIMER
+        // ==========================================
+
+        let sec = 1800; // 30 menit
+
+        const timerElement =
+            document.getElementById("timer");
+
+        const timer = setInterval(() => {
+
+            sec--;
+
+            const menit =
+                String(Math.floor(sec / 60))
+                .padStart(2, "0");
+
+            const detik =
+                String(sec % 60)
+                .padStart(2, "0");
+
+            timerElement.textContent =
+                `${menit}:${detik}`;
+
+
+            // Waktu habis
+            if (sec <= 0) {
+
+                clearInterval(timer);
+
+                submitQuiz();
+
+            }
+
+        }, 1000);
+
+
+        // ==========================================
+        // 3. MEMBACA FILE EXCEL
+        // ==========================================
+
+        async function loadQuestions() {
+
+            // Ambil file Excel
+            const response =
+                await fetch("BANK_SOAL.xlsx");
+
+            // Ubah menjadi data binary
+            const buffer =
+                await response.arrayBuffer();
+
+            // Baca file Excel
+            const workbook =
+                XLSX.read(buffer);
+
+            // Ambil sheet BANK_SOAL
+            const sheet =
+                workbook.Sheets["BANK_SOAL"];
+
+            // Ubah Excel menjadi array JavaScript
+            const data =
+                XLSX.utils.sheet_to_json(sheet);
+
+            return data;
+        }
+
+
+        // ==========================================
+        // 4. TAMPILKAN SOAL
+        // ==========================================
+
+        let QUESTIONS = [];
+
+        async function tampilkanSoal() {
+
+            QUESTIONS =
+                await loadQuestions();
+
+            const box =
+                document.getElementById("qz");
+
+            box.innerHTML = "";
+
+
+            QUESTIONS.forEach((soal, index) => {
+
+                let html = `
+                    <div class="card">
+
+                        <b>
+                            ${index + 1}.
+                            ${soal.soal}
+                        </b>
+
+                        <label class="opt">
+                            <input
+                                type="radio"
+                                name="q${index}"
+                                value="A"
+                            >
+                            A. ${soal.opsi_a}
+                        </label>
+
+                        <label class="opt">
+                            <input
+                                type="radio"
+                                name="q${index}"
+                                value="B"
+                            >
+                            B. ${soal.opsi_b}
+                        </label>
+
+                        <label class="opt">
+                            <input
+                                type="radio"
+                                name="q${index}"
+                                value="C"
+                            >
+                            C. ${soal.opsi_c}
+                        </label>
+
+                        <label class="opt">
+                            <input
+                                type="radio"
+                                name="q${index}"
+                                value="D"
+                            >
+                            D. ${soal.opsi_d}
+                        </label>
+
+                    </div>
+                `;
+
+                box.innerHTML += html;
+
+            });
+
+        }
+
+
+        // Jalankan saat halaman dibuka
+        tampilkanSoal();
+
+
+        // ==========================================
+        // 5. SUBMIT JAWABAN
+        // ==========================================
+
+        window.submitQuiz = async function () {
+
+            let score = 0;
+
+            const answers = [];
+
+
+            QUESTIONS.forEach((soal, index) => {
+
+                const pilihan =
+                    document.querySelector(
+                        `input[name="q${index}"]:checked`
+                    );
+
+
+                const jawaban =
+                    pilihan
+                        ? pilihan.value
+                        : "";
+
+
+                // Cek jawaban
+                if (
+                    jawaban.toUpperCase()
+                    === String(soal.jawaban).toUpperCase()
+                ) {
+
+                    score++;
+
+                }
+
+
+                answers.push(jawaban);
+
+            });
+
+
+            // Simpan hasil ke Firebase
+            await addDoc(
+                collection(db, "results"),
+                {
+
+                    nim: mahasiswa.nim,
+
+                    nama: mahasiswa.nama,
+
+                    kelas: mahasiswa.kelas,
+
+                    score: score,
+
+                    total:
+                        QUESTIONS.length,
+
+                    answers: answers,
+
+                    waktu:
+                        new Date().toISOString()
+
+                }
+            );
+
+
+            alert(
+                `Ujian selesai!\n\n` +
+                `Nilai: ${score}/${QUESTIONS.length}`
+            );
+
+
+            location = "index.html";
+
+        };
+
+    </script>
+
+</body>
+
+</html>
